@@ -1,0 +1,23 @@
+{
+  "name": "cpp-reflection-demo",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/src",
+
+  // TODO: change
+  "remoteUser": "root",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["BazelBuild.vscode-bazel", "ms-vscode.cpptools"],
+      "settings": {
+        "C_Cpp.default.compilerPath": "/usr/local/bin/g++",
+        "C_Cpp.default.cppStandard": "c++26",
+        "C_Cpp.default.compilerArgs": ["-freflection"],
+        "C_Cpp.errorSquiggles": "disabled",
+        "bazel.buildifierExecutable": "/usr/local/bin/buildifier",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

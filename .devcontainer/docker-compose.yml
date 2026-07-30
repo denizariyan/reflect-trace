@@ -1,0 +1,28 @@
+# Dev container plus a Jaeger all-in-one sidecar, so `bazel run` can export
+# spans over OTLP and the validation script can query them back.
+#
+# From `dev`, Jaeger is reachable by service name on the compose network:
+#   http://jaeger:4318/v1/traces   OTLP/HTTP ingest
+#   http://jaeger:16686            query API + UI
+# Only the UI port is published to the host.
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ..:/src:cached
+      - cpp-refl-bazel-cache:/root/.cache/bazel
+    working_dir: /src
+    command: sleep infinity
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.10.0
+    ports:
+      - "16686:16686"  # UI at http://localhost:16686
+
+volumes:
+  cpp-refl-bazel-cache:
