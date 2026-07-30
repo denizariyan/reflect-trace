@@ -1,0 +1,8 @@
+build --cxxopt=-std=c++26 --cxxopt=-freflection
+build --host_cxxopt=-std=c++26 --host_cxxopt=-freflection
+
+# Disables generated symlinks in srctree to prevent broken links on host mount
+build --symlink_prefix=/
+
+build --color=yes
+test --test_output=errors
