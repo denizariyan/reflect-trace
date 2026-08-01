@@ -1,0 +1,95 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+test_suite(
+    name = "unit_tests",
+    tests = [
+        ":attributes_test",
+        ":reflect_test",
+        ":traced_fn_test",
+    ],
+)
+
+cc_library(
+    name = "tracing",
+    hdrs = [
+        "include/tracing/attributes.hpp",
+        "include/tracing/detail/reflect.hpp",
+        "include/tracing/overload_set.hpp",
+        "include/tracing/traced.hpp",
+        "include/tracing/traced_fn.hpp",
+        "include/tracing/tracer.hpp",
+        "include/tracing/tracing.hpp",
+    ],
+    strip_include_prefix = "include",
+    deps = ["@opentelemetry-cpp//api"],
+)
+
+cc_library(
+    name = "otlp_provider",
+    srcs = ["src/otlp_provider.cpp"],
+    hdrs = ["include/tracing/otlp_provider.hpp"],
+    strip_include_prefix = "include",
+    deps = [
+        "@opentelemetry-cpp//exporters/otlp:otlp_http_exporter",
+        "@opentelemetry-cpp//sdk/src/trace",
+    ],
+)
+
+cc_library(
+    name = "test_ops",
+    testonly = True,
+    srcs = ["test/test_ops.cpp"],
+    hdrs = ["test/test_ops.hpp"],
+    strip_include_prefix = "test",
+    deps = [":tracing"],
+)
+
+cc_library(
+    name = "span_test_fixture",
+    testonly = True,
+    hdrs = ["test/span_test_fixture.hpp"],
+    strip_include_prefix = "test",
+    deps = [
+        "@googletest//:gtest",
+        "@opentelemetry-cpp//exporters/memory:in_memory_span_exporter",
+        "@opentelemetry-cpp//sdk/src/trace",
+    ],
+)
+
+cc_test(
+    name = "reflect_test",
+    size = "small",
+    srcs = ["test/reflect_test.cpp"],
+    deps = [
+        ":test_ops",
+        ":tracing",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "attributes_test",
+    size = "small",
+    srcs = ["test/attributes_test.cpp"],
+    deps = [
+        ":span_test_fixture",
+        ":test_ops",
+        ":tracing",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "traced_fn_test",
+    size = "small",
+    srcs = ["test/traced_fn_test.cpp"],
+    deps = [
+        ":span_test_fixture",
+        ":test_ops",
+        ":tracing",
+        "@googletest//:gtest_main",
+    ],
+)

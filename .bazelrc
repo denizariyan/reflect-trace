@@ -1,8 +1,23 @@
 build --cxxopt=-std=c++26 --cxxopt=-freflection
 build --host_cxxopt=-std=c++26 --host_cxxopt=-freflection
 
-# Disables generated symlinks in srctree to prevent broken links on host mount
+# google_benchmark's own BUILD hardcodes `copts = ["-std=c++17", ...]`
+# force it here so it can also be built with the same flags applied to
+# the rest of the project.
+build --per_file_copt=google_benchmark.*\.cc$@-std=c++26
+
 build --symlink_prefix=/
 
 build --color=yes
 test --test_output=errors
+
+build:release --compilation_mode=opt
+
+build:benchmark --config=release
+
+# --collect_code_coverage instruments externals too, and protobuf's
+# PROTOBUF_MUSTTAIL does not survive gcov's counters at -O0. -O1 is the only
+# level that compiles. See docs/coverage.md for more.
+coverage:coverage --per_file_copt=external/protobuf.*@-O1
+coverage:coverage --combined_report=lcov
+coverage:coverage --instrumentation_filter=^//src/
