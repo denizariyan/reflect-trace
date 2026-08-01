@@ -1,13 +1,3 @@
-# Build and test inside the devcontainer image.
-#
-# There is no host build path for this repo, we need real gcc 16.1 with
-# -freflection, which no runner image or existing bazel toolchain ships as of now.
-# So CI builds `docker/Dockerfile` (the same image the devcontainer uses), pushes it to GHCR,
-# and runs the matrix legs *inside* it via `container:`. That keeps CI and local on one toolchain:
-# if the container is green here it is green in VS Code.
-#
-# The image is only rebuilt when the Dockerfile or .bazelversion changes -- the
-# tag is a hash of both, and BuildKit's gha cache makes a no-op rebuild ~10s.
 
 name: CI
 
@@ -30,20 +20,28 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image: ${{ steps.tag.outputs.image }}
+      image: ${{ steps.resolve.outputs.image }}
     steps:
       - uses: actions/checkout@v7
 
       # Content-addressed tag so unrelated pushes reuse the pushed image instead of rebuilding it.
       # TODO: this can drift away easily. Maybe we build the image with Bazel so it handles this for us?
       - id: tag
+        env:
+          REPOSITORY: ${{ github.repository }}
+          CONTENT_HASH: ${{ hashFiles('docker/Dockerfile', '.bazelversion') }}
         run: |
-          digest=$(echo "${{ hashFiles('docker/Dockerfile', '.bazelversion') }}" | cut -c1-16)
-          echo "image=ghcr.io/${{ github.repository }}/devcontainer:$digest" >> "$GITHUB_OUTPUT"
+          repo="ghcr.io/${REPOSITORY}/devcontainer"
+          digest=$(echo "$CONTENT_HASH" | cut -c1-16)
+          {
+            echo "exact=$repo:$digest"
+            echo "floating=$repo:main"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v4
+      - if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -53,10 +51,25 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
-          push: true
-          tags: ${{ steps.tag.outputs.image }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.tag.outputs.exact }}
+            ${{ steps.tag.outputs.floating }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - id: resolve
+        env:
+          REF: ${{ github.ref }}
+          EXACT: ${{ steps.tag.outputs.exact }}
+          FLOATING: ${{ steps.tag.outputs.floating }}
+        run: |
+          if [ "$REF" = 'refs/heads/main' ]; then
+            echo "image=$EXACT" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Running on $FLOATING, the toolchain published from main. A Dockerfile change in this PR is built and checked, but only takes effect once merged. Consider creating a separate PR to update the Dockerfile and merge it first."
+            echo "image=$FLOATING" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     name: ${{ matrix.name }}
@@ -65,12 +78,8 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      packages: read
     container:
       image: ${{ needs.devcontainer-image.outputs.image }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
