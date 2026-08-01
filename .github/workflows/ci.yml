@@ -1,0 +1,110 @@
+# Build and test inside the devcontainer image.
+#
+# There is no host build path for this repo, we need real gcc 16.1 with
+# -freflection, which no runner image or existing bazel toolchain ships as of now.
+# So CI builds `docker/Dockerfile` (the same image the devcontainer uses), pushes it to GHCR,
+# and runs the matrix legs *inside* it via `container:`. That keeps CI and local on one toolchain:
+# if the container is green here it is green in VS Code.
+#
+# The image is only rebuilt when the Dockerfile or .bazelversion changes -- the
+# tag is a hash of both, and BuildKit's gha cache makes a no-op rebuild ~10s.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Builds the toolchain image once; both matrix legs pull the same tag.
+  devcontainer-image:
+    name: devcontainer image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.tag.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Content-addressed tag so unrelated pushes reuse the pushed image instead of rebuilding it.
+      # TODO: this can drift away easily. Maybe we build the image with Bazel so it handles this for us?
+      - id: tag
+        run: |
+          digest=$(echo "${{ hashFiles('docker/Dockerfile', '.bazelversion') }}" | cut -c1-16)
+          echo "image=ghcr.io/${{ github.repository }}/devcontainer:$digest" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.tag.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build:
+    name: ${{ matrix.name }}
+    needs: devcontainer-image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.devcontainer-image.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fastbuild
+            config: ""
+          - name: release
+            config: "--config=release"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/bazel-disk
+            ~/.cache/bazel-repo
+          key: bazel-${{ matrix.name }}-${{ hashFiles('MODULE.bazel.lock') }}
+          restore-keys: |
+            bazel-${{ matrix.name }}-
+
+      - name: bazel build //...
+        run: |
+          bazel build ${{ matrix.config }} \
+            --disk_cache="$HOME/.cache/bazel-disk" \
+            --repository_cache="$HOME/.cache/bazel-repo" \
+            --show_progress_rate_limit=10 \
+            --announce_rc \
+            //...
+
+      - name: bazel test //...
+        run: |
+          bazel test ${{ matrix.config }} \
+            --disk_cache="$HOME/.cache/bazel-disk" \
+            --repository_cache="$HOME/.cache/bazel-repo" \
+            --show_progress_rate_limit=10 \
+            //...
