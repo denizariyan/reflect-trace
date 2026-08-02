@@ -68,11 +68,10 @@ class SdkProvider : public benchmark::Fixture {
   std::shared_ptr<trace_sdk::TracerProvider> m_provider;
 };
 
-/// Varying the argument stops the compiler folding the call to a constant, and
-/// `DoNotOptimize` stops it dropping the result. Without both, an -O2 build can
-/// delete the entire loop body.
+/// @brief Boilerplate loop used in most benchmarks. @p expr is the work to
+/// time, @p n is the parameter used as part of the timed expression.
 #define TRACE_BENCH_LOOP(expr)      \
-  int n = 0;                        \
+  [[maybe_unused]] int n = 0;       \
   for (auto _ : state) {            \
     benchmark::DoNotOptimize(expr); \
     ++n;                            \
@@ -80,7 +79,7 @@ class SdkProvider : public benchmark::Fixture {
   state.SetItemsProcessed(state.iterations())
 
 /// @brief Config applied to every benchmark.
-void Config(benchmark::internal::Benchmark* b) {
+void Config(benchmark::Benchmark* b) {
   b->Repetitions(20)->MinTime(0.1)->DisplayAggregatesOnly(true);
 }
 
