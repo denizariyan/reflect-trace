@@ -4,8 +4,10 @@ Derive span names and attributes from your declarations, at compile time.
 
 Mark functions and templates at compile-time, get a wrapper that opens a real
 OpenTelemetry span, records the parameters by their source names, and expands
-nested structs into dotted attribute keys. No macros, no manual `SetAttribute`
-or span plumbing, no runtime reflection.
+nested structs into dotted attribute keys. No macros, no manual span plumbing,
+no runtime reflection, no overhead compared to manual instrumentation.
+
+See [`docs/benchmark.md`](docs/benchmark.md) for a performance comparison against hand-written instrumentation.
 
 ## The idea
 
