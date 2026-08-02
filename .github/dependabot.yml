@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "github-actions"
+
+  - package-ecosystem: "bazel"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      bazel-modules:
+        patterns: ["*"]
+    commit-message:
+      prefix: "bazel-modules"
+
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      devcontainer-image:
+        patterns: ["*"]
+    commit-message:
+      prefix: "devcontainer-image"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/.devcontainer"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      devcontainer-services:
+        patterns: ["*"]
+    commit-message:
+      prefix: "devcontainer-services"
