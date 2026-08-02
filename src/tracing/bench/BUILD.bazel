@@ -1,0 +1,29 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:private"])
+
+cc_library(
+    name = "bench_ops",
+    testonly = True,
+    srcs = ["bench_ops.cpp"],
+    hdrs = ["bench_ops.hpp"],
+    deps = ["//src/tracing"],
+)
+
+# Run with --config=benchmark. A fastbuild build measures the unoptimised
+# wrapper:
+#
+#     bazel run --config=benchmark //src/tracing/bench:wrapper_bench
+cc_binary(
+    name = "wrapper_bench",
+    testonly = True,
+    srcs = ["wrapper_bench.cpp"],
+    deps = [
+        ":bench_ops",
+        "//src/tracing",
+        "@google_benchmark//:benchmark",
+        "@opentelemetry-cpp//exporters/memory:in_memory_span_exporter",
+        "@opentelemetry-cpp//sdk/src/trace",
+    ],
+)
