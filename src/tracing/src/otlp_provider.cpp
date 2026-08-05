@@ -36,6 +36,22 @@ std::string resolve_endpoint(std::string_view endpoint) {
 /// How long the destructor waits for the queue to drain.
 constexpr std::chrono::seconds kShutdownTimeout{30};
 
+/// @brief Wraps @p exporter in a batch processor and builds a provider around
+///        it, tagged with @p service_name. Both constructors go through here.
+std::shared_ptr<trace_sdk::TracerProvider> make_provider(
+    std::string_view service_name,
+    std::unique_ptr<trace_sdk::SpanExporter> exporter) {
+  trace_sdk::BatchSpanProcessorOptions batch_options{};
+  auto processor = trace_sdk::BatchSpanProcessorFactory::Create(
+      std::move(exporter), batch_options);
+
+  auto resource = resource_sdk::Resource::Create(
+      {{"service.name", std::string(service_name)}});
+
+  return trace_sdk::TracerProviderFactory::Create(std::move(processor),
+                                                  resource);
+}
+
 }  // namespace
 
 OtlpProvider::OtlpProvider(std::string_view service_name,
@@ -44,17 +60,15 @@ OtlpProvider::OtlpProvider(std::string_view service_name,
   otlp::OtlpHttpExporterOptions options;
   options.url = m_endpoint;
 
-  auto exporter = otlp::OtlpHttpExporterFactory::Create(options);
+  m_provider = make_provider(service_name,
+                             otlp::OtlpHttpExporterFactory::Create(options));
 
-  trace_sdk::BatchSpanProcessorOptions batch_options{};
-  auto processor = trace_sdk::BatchSpanProcessorFactory::Create(
-      std::move(exporter), batch_options);
+  trace_sdk::Provider::SetTracerProvider(m_provider);
+}
 
-  auto resource = resource_sdk::Resource::Create(
-      {{"service.name", std::string(service_name)}});
-
-  m_provider =
-      trace_sdk::TracerProviderFactory::Create(std::move(processor), resource);
+OtlpProvider::OtlpProvider(std::string_view service_name,
+                           std::unique_ptr<trace_sdk::SpanExporter> exporter) {
+  m_provider = make_provider(service_name, std::move(exporter));
 
   trace_sdk::Provider::SetTracerProvider(m_provider);
 }

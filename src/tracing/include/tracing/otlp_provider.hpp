@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+#include "opentelemetry/sdk/trace/exporter.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
 
 namespace tracing {
@@ -29,6 +30,17 @@ class OtlpProvider {
   explicit OtlpProvider(std::string_view service_name,
                         std::string_view endpoint = {});
 
+  /// @brief User provided exporter instead of the default OTLP/HTTP one.
+  ///
+  /// @param service_name Value of the `service.name` resource attribute.
+  /// @param exporter Where the batch worker sends what it drains.
+  ///
+  /// @note @ref endpoint() is empty for a provider built this way: nothing
+  ///       resolved a URL, because no HTTP is involved.
+  OtlpProvider(
+      std::string_view service_name,
+      std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> exporter);
+
   /// @brief Uninstalls the provider, then drains the queue and joins the
   ///        exporter's worker thread.
   ///
@@ -46,6 +58,7 @@ class OtlpProvider {
                  5000});
 
   /// @brief The endpoint actually in use, after env/default resolution.
+  ///        Empty when the exporter was supplied by the caller.
   const std::string& endpoint() const { return m_endpoint; }
 
  private:

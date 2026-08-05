@@ -7,6 +7,7 @@ test_suite(
     name = "unit_tests",
     tests = [
         ":attributes_test",
+        ":otlp_provider_test",
         ":reflect_test",
         ":traced_fn_test",
     ],
@@ -45,6 +46,28 @@ cc_library(
     hdrs = ["test/test_ops.hpp"],
     strip_include_prefix = "test",
     deps = [":tracing"],
+)
+
+cc_library(
+    name = "batch_env",
+    testonly = True,
+    hdrs = ["test/batch_env.hpp"],
+    strip_include_prefix = "test",
+)
+
+cc_library(
+    name = "recording_exporter",
+    testonly = True,
+    hdrs = ["test/recording_exporter.hpp"],
+    strip_include_prefix = "test",
+    deps = ["@opentelemetry-cpp//sdk/src/trace"],
+)
+
+cc_library(
+    name = "watchdog",
+    testonly = True,
+    hdrs = ["test/watchdog.hpp"],
+    strip_include_prefix = "test",
 )
 
 cc_library(
@@ -90,6 +113,60 @@ cc_test(
         ":span_test_fixture",
         ":test_ops",
         ":tracing",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# `linkstatic` is required. A `cc_test` links dynamically by default
+# and upstream's `otlp_recordable` names fewer deps than it uses.
+# It references `sdk::metrics` symbols without depending on that target.
+# Without this the link fails with  an undefined `AdaptingCircularBufferCounter::Get`.
+cc_test(
+    name = "otlp_provider_test",
+    size = "small",
+    srcs = ["test/otlp_provider_test.cpp"],
+    linkstatic = True,
+    deps = [
+        ":batch_env",
+        ":otlp_provider",
+        ":recording_exporter",
+        ":test_ops",
+        ":tracing",
+        ":watchdog",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Manual because this test actually hits a OTel SDK bug.
+cc_test(
+    name = "otlp_provider_wakeup_test",
+    size = "medium",
+    srcs = ["test/otlp_provider_wakeup_test.cpp"],
+    linkstatic = True,
+    tags = ["manual"],
+    deps = [
+        ":batch_env",
+        ":otlp_provider",
+        ":recording_exporter",
+        ":test_ops",
+        ":tracing",
+        ":watchdog",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "otlp_provider_stress_test",
+    size = "medium",
+    srcs = ["test/otlp_provider_stress_test.cpp"],
+    linkstatic = True,
+    deps = [
+        ":batch_env",
+        ":otlp_provider",
+        ":recording_exporter",
+        ":test_ops",
+        ":tracing",
+        ":watchdog",
         "@googletest//:gtest_main",
     ],
 )
