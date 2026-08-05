@@ -138,6 +138,7 @@ cc_test(
 )
 
 # Manual because this test actually hits a OTel SDK bug.
+# Possibly fixed by https://github.com/denizariyan/opentelemetry-cpp/pull/1
 cc_test(
     name = "otlp_provider_wakeup_test",
     size = "medium",
