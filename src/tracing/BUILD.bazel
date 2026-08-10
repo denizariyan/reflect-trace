@@ -117,15 +117,10 @@ cc_test(
     ],
 )
 
-# `linkstatic` is required. A `cc_test` links dynamically by default
-# and upstream's `otlp_recordable` names fewer deps than it uses.
-# It references `sdk::metrics` symbols without depending on that target.
-# Without this the link fails with  an undefined `AdaptingCircularBufferCounter::Get`.
 cc_test(
     name = "otlp_provider_test",
     size = "small",
     srcs = ["test/otlp_provider_test.cpp"],
-    linkstatic = True,
     deps = [
         ":batch_env",
         ":otlp_provider",
@@ -143,7 +138,6 @@ cc_test(
     name = "otlp_provider_wakeup_test",
     size = "medium",
     srcs = ["test/otlp_provider_wakeup_test.cpp"],
-    linkstatic = True,
     tags = ["manual"],
     deps = [
         ":batch_env",
@@ -160,7 +154,6 @@ cc_test(
     name = "otlp_provider_stress_test",
     size = "medium",
     srcs = ["test/otlp_provider_stress_test.cpp"],
-    linkstatic = True,
     deps = [
         ":batch_env",
         ":otlp_provider",
