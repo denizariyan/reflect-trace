@@ -1,4 +1,4 @@
-FROM gcc:16.1.0
+FROM gcc:16.2.0
 
 ARG TARGETARCH
 
